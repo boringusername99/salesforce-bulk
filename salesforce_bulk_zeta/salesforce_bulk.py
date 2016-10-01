@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 # Interface to the Salesforce BULK API
+import io
 import os
 from collections import namedtuple
 from httplib2 import Http
@@ -587,3 +588,23 @@ class SalesforceBulk(object):
                         quotes = 0
 
         return lines
+
+    def get_results(self, job_id, batch_id):
+        job_id = job_id or self.lookup_job_id(batch_id)
+        if not self.is_batch_done(job_id, batch_id):
+            return False
+
+        uri = urlparse.urljoin(
+            self.endpoint + "/",
+            "job/{0}/batch/{1}/result".format(
+                job_id, batch_id),
+        )
+        resp = requests.get(uri, headers=self.headers())
+        if resp.status_code != 200:
+            return False
+
+        reader = csv.reader(io.StringIO(unicode(resp.content)), delimiter=",", quotechar='"')
+        records = []
+        for row in reader:
+            records.append(row)
+        return records
